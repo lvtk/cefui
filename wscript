@@ -232,7 +232,7 @@ def build (bld):
                   glob ('plugins/cefui.lv2/client/*.cpp')
 
     # Search in the lv2 bundle for CEF related libraries
-    ceflinkflags = ['-L./cefui.lv2', '-lcef', '-Wl,-rpath,$ORIGIN']
+    ceflinkflags = ['-L./stage/lib/lv2/cefui.lv2', '-lcef', '-Wl,-rpath,$ORIGIN']
 
     # Build the LV2 UI + Helper Library
     libcefui = bld.shlib (
