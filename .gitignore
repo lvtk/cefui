@@ -1,0 +1,24 @@
+## Directories
+libs/cef_*
+libs/chromium
+libs/depot_tools
+build
+downloads
+
+## Waf stuff
+.waf-*
+.lock-waf*
+
+## Build/Editor artifacts
+*.pyc
+*.o
+*.so
+*.autosave
+*.save
+
+## Qt Creator Files
+cefui.config
+cefui.creator
+cefui.creator.user
+cefui.files
+cefui.includes

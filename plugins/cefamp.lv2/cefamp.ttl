@@ -1,0 +1,36 @@
+@prefix atom:  <http://lv2plug.in/ns/ext/atom#> .
+@prefix doap:  <http://usefulinc.com/ns/doap#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
+@prefix state: <http://lv2plug.in/ns/ext/state#> .
+@prefix ui:    <http://lv2plug.in/ns/extensions/ui#> .
+@prefix urid:  <http://lv2plug.in/ns/ext/urid#> .
+@prefix ll:    <http://ll-plugins.nongnu.org/lv2/namespace#> .
+@prefix ev:    <http://lv2plug.in/ns/ext/event#>.
+
+<http://lvtoolkit.org/plugins/cefamp>
+    a lv2:Plugin ;
+    doap:name "CEF Amp" ;
+    doap:license <http://usefulinc.com/doap/licenses/gpl> ;
+    lv2:requiredFeature urid:map ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    ui:ui <http://lvtoolkit.org/plugins/cef#ui> ;
+    lv2:port [
+        a lv2:AudioPort, lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "input" ;
+        lv2:name "Input"
+    ] , [
+        a lv2:AudioPort, lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "ouput" ;
+        lv2:name "Output"
+    ] , [
+        a lv2:ControlPort, lv2:InputPort ;
+        lv2:index 2 ;
+        atom:supports <http://lv2plug.in/ns/ext/midi#MidiEvent> ;
+        lv2:minimum -70.0 ;
+        lv2:maximum 24.0 ;
+        lv2:symbol "volume" ;
+        lv2:name "Volume"
+    ] .

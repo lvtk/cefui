@@ -1,0 +1,3 @@
+[submodule "libs/lvtk"]
+	path = libs/lvtk
+	url = git://github.com/lvtk/lvtk.git

@@ -1,0 +1,11 @@
+prefix=@PREFIX@
+exec_prefix=@EXEC_PREFIX@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: CEF UI
+Version: @VERSION@
+Description: A Chromium Powered LV2 Plugin UI
+Requires: @PKGDEPS@
+Libs: -L${libdir} -l@THELIB@
+Cflags: -I${includedir}/cefui-@MAJOR_VERSION@
