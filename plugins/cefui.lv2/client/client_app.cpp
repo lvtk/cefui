@@ -42,7 +42,7 @@ public:
                                                   CefRefPtr<CefRequest> request) override
     {
         const URL url (request->GetURL());
-        string path (p_app->m_browser_map [browser->GetIdentifier()]);
+        string path (p_app->m_paths [browser->GetIdentifier()]);
         path.append (url.resource_path());
         if (url.file_extension().empty())
             path.append ("index.html");
@@ -59,35 +59,88 @@ private:
 };
 
 
+/** Implements the CefApp interface for browser-side handling */
+class ClientAppHandler :  public CefApp,
+                          public CefBrowserProcessHandler
+{
+public:
+    ClientAppHandler() { }
+    ~ClientAppHandler() { }
+
+    // browser process handler
+    void OnContextInitialized() override
+    {
+        clog << "ClientAppHandler::OnContextInitialized()\n";
+    }
+
+    void OnRegisterCustomSchemes (CefRefPtr<CefSchemeRegistrar> registrar) override
+    {
+        clog << "ClientAppHandler::OnRegisterCustomSchemes\n";
+        registrar->AddCustomScheme ("cefui", true, false, false);
+    }
+
+    CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override { return this; }
+
+private:
+    IMPLEMENT_REFCOUNTING (ClientAppHandler)
+    IMPLEMENT_LOCKING (ClientAppHandler)
+};
+
+
+
+class ClientApp::Impl
+{
+public:
+    Impl (ClientApp* app)
+    {
+        handler = new ClientAppHandler();
+    }
+
+    CefRefPtr<ClientAppHandler> handler;
+};
+
+
 ClientApp::ClientApp()
 {
+    impl.reset (new Impl (this));
     g_lilv_world = lilv_world_new();
     lilv_world_load_all (g_lilv_world);
 }
 
 ClientApp::~ClientApp()
 {
+    std::clog << "ClientApp::~ClientApp()\n";
     lilv_world_free (g_lilv_world);
     g_lilv_world = nullptr;
+    impl.reset();
+}
+
+void ClientApp::register_browser (int browser_id, const std::string& plugin_uri)
+{
+    if (m_paths.end() != m_paths.find (browser_id))
+        return;
+
+    string plugin_path;
+    cefui_plugin_get_path (plugin_path, plugin_uri);
+    m_paths.insert (make_pair (browser_id, plugin_path));
+}
+
+void ClientApp::unregister_browser (int browser_id)
+{
+    PathMap::iterator it = m_paths.find (browser_id);
+    if (it != m_paths.end())
+        m_paths.erase (it);
 }
 
 // browser process handler
 void ClientApp::OnContextInitialized()
 {
+    clog << "ClientApp::OnContextInitialized()\n";
     CefRegisterSchemeHandlerFactory ("cefui", "plugin", new SchemeHandlerFactory (this));
 }
 
 void ClientApp::OnRegisterCustomSchemes (CefRefPtr<CefSchemeRegistrar> registrar)
 {
+    clog << "ClientApp::OnRegisterCustomSchemes\n";
     registrar->AddCustomScheme ("cefui", true, false, false);
-}
-
-void ClientApp::RegisterBrowserForPlugin (int browser_id, const std::string& plugin_uri)
-{
-    if (m_browser_map.end() != m_browser_map.find (browser_id))
-        return;
-
-    string plugin_path;
-    cefui_plugin_get_path (plugin_path, plugin_uri);
-    m_browser_map.insert (make_pair (browser_id, plugin_path));
 }

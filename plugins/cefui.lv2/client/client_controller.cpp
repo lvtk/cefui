@@ -190,10 +190,10 @@ public:
 
         AutoLock sl (this);
 
-        if (! browser.get())
+        if (! m_browser.get())
         {
             // We need to keep the main child window, but not popup windows
-            browser = browser;
+            m_browser = browser;
             m_browser_id = browser->GetIdentifier();
         }
         else if (browser->IsPopup())
@@ -279,7 +279,7 @@ public:
     CefRefPtr<CefRequestHandler>     GetRequestHandler()     override { return this; }
 
 private:
-    CefRefPtr<CefBrowser> browser;
+    CefRefPtr<CefBrowser> m_browser;
     int m_browser_id;
 
 
@@ -313,8 +313,8 @@ public:
 
     void close_all_browsers (const bool force)
     {
-        if (handler->browser)
-            handler->browser->GetHost()->CloseBrowser (force);
+        if (handler->m_browser)
+            handler->m_browser->GetHost()->CloseBrowser (force);
 
         if (handler->popups.empty())
             return;
@@ -356,7 +356,11 @@ ClientController::ClientController()
     impl.reset (new Impl (this));
 }
 
-ClientController::~ClientController() { }
+ClientController::~ClientController()
+{
+    impl->close_all_browsers (true);
+    impl.reset();
+}
 
 void
 ClientController::add_listener (Listener* l)

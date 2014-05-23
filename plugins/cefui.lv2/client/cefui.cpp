@@ -26,8 +26,9 @@ using namespace lvtk;
 #define CEFUI_URI     "http://lvtoolkit.org/plugins/cefui"
 
 static gint timeout_callback (gpointer data);
-
+static guint g_timeout = 0;
 static bool g_have_cef_init = false;
+static int g_num_instances = 0;
 static CefRefPtr<ClientApp> g_app;
 
 class CefAmpUI;
@@ -44,7 +45,6 @@ public:
         : GuiType()
     {
         m_browser = -1;
-        timeout = 0;
         m_plugin_uri = plugin_uri_;
 
         p_vbox = gtk_vbox_new (FALSE, 0);
@@ -52,6 +52,8 @@ public:
 
         chromium_init();
         sync_browser();
+
+        ++g_num_instances;
     }
 
     ~CefAmpUI()
@@ -59,16 +61,22 @@ public:
         if (m_client)
             m_client->remove_listener (this);
 
-        if (timeout != 0) {
-            gtk_timeout_remove (timeout);
-            timeout = 0;
-        }
+        if (have_browser_sync())
+            g_app->unregister_browser (m_browser);
 
-        m_browser = 0;
-        m_client = nullptr;
+        m_browser = -1;
+        m_client.reset();
 
-        gtk_widget_destroy (p_vbox);
+        // gtk_widget_destroy (p_vbox);
         p_vbox = nullptr;
+
+        if (--g_num_instances == 0)
+        {
+            if (g_timeout != 0) {
+                gtk_timeout_remove (g_timeout);
+                g_timeout = 0;
+            }
+        }
     }
 
     void client_received_control (const std::string& port, const double value)
@@ -117,37 +125,40 @@ private:
     GtkWidget* p_vbox;
     std::unique_ptr<ClientController> m_client;
     int m_browser;
-    gint timeout;
 
     void chromium_init()
     {
-        if (g_have_cef_init)
+        if (! g_have_cef_init)
+        {
+            const std::string renderer_path (std::string (bundle_path()).append ("cefui-renderer"));
+            const std::string resources_dir (bundle_path());
+            const std::string locales_path (resources_dir + std::string ("/locales"));
+
+            CefMainArgs args;
+            CefSettings settings;
+            settings.single_process = false;
+            settings.command_line_args_disabled = true;
+            settings.multi_threaded_message_loop = false;
+            settings.no_sandbox = true; //TODO: Figure out sandboxing
+            CefString (&settings.browser_subprocess_path) = renderer_path;
+            CefString (&settings.resources_dir_path) = resources_dir;
+            CefString (&settings.locales_dir_path) = locales_path;
+
+           #ifndef NDEBUG
+            settings.log_severity = LOGSEVERITY_DISABLE;
+           #endif
+
+            std::clog << "CREATING CLIENT APP. CEF3 INIT\n";
+            g_app = new ClientApp();
+            g_have_cef_init = CefInitialize (args, settings, g_app.get(), 0);
+        }
+
+        if (! g_have_cef_init)
             return;
 
-        const std::string browser_path (std::string (bundle_path()).append ("cefui-renderer"));
-        const std::string resources_dir (bundle_path());
-        const std::string locales_path (resources_dir + std::string ("/locales"));
+        if (g_timeout == 0)
+            g_timeout = gtk_timeout_add (30, &timeout_callback, nullptr);
 
-        CefMainArgs args;
-        CefSettings settings;
-        settings.single_process = false;
-        settings.command_line_args_disabled = true;
-        settings.multi_threaded_message_loop = false;
-        settings.no_sandbox = true;
-        CefString (&settings.browser_subprocess_path) = browser_path;
-        CefString (&settings.resources_dir_path) = resources_dir;
-        CefString (&settings.locales_dir_path) = locales_path;
-
-       #ifndef NDEBUG
-        settings.log_severity = LOGSEVERITY_DISABLE;
-       #endif
-
-        g_app = new ClientApp();
-        if (! CefInitialize (args, settings, g_app.get(), 0))
-            return;
-
-        g_have_cef_init = true;
-        timeout = g_timeout_add (30, &timeout_callback, 0);
     }
 
     ClientController* get_client_controller()
@@ -173,7 +184,7 @@ private:
         }
 
         if (m_browser >= 0)
-            g_app->RegisterBrowserForPlugin (m_browser, m_plugin_uri);
+            g_app->register_browser (m_browser, m_plugin_uri);
     }
 };
 
