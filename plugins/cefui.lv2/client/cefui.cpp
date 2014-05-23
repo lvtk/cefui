@@ -132,12 +132,15 @@ private:
         CefSettings settings;
         settings.single_process = false;
         settings.command_line_args_disabled = true;
-        //settings.log_severity = LOGSEVERITY_DISABLE;
-        settings.no_sandbox = true;
         settings.multi_threaded_message_loop = false;
+        settings.no_sandbox = true;
         CefString (&settings.browser_subprocess_path) = browser_path;
         CefString (&settings.resources_dir_path) = resources_dir;
         CefString (&settings.locales_dir_path) = locales_path;
+
+       #ifndef NDEBUG
+        settings.log_severity = LOGSEVERITY_DISABLE;
+       #endif
 
         g_app = new ClientApp();
         if (! CefInitialize (args, settings, g_app.get(), 0))
@@ -161,11 +164,16 @@ private:
     void sync_browser()
     {
         if (ClientController* ctl = get_client_controller())
+        {
             m_browser = ctl->create_browser (p_vbox, "cefui://plugin/");
+        }
         else
+        {
             m_browser = -1;
+        }
 
-        assert (m_browser >= 0);
+        if (m_browser >= 0)
+            g_app->RegisterBrowserForPlugin (m_browser, m_plugin_uri);
     }
 };
 
