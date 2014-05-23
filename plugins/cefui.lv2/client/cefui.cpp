@@ -6,6 +6,9 @@
 #include "lvtk/ui.hpp"
 #include "lvtk/ext/idle_interface.hpp"
 
+#include "cefui/url.h"
+
+
 #include "include/cef_app.h"
 #include "include/cef_browser.h"
 #include "include/cef_frame.h"
@@ -15,11 +18,12 @@
 #include "client/client_controller.h"
 
 
-#include "cefui/url.h"
+// directly include the lvtk wrapper
+#include "../../../lvtk/src/ui.cpp"
 
 using namespace lvtk;
 
-#define CEFUI_URI     "http://lvtoolkit.org/plugins/cef#ui"
+#define CEFUI_URI     "http://lvtoolkit.org/plugins/cefui"
 
 static gint timeout_callback (gpointer data);
 
@@ -61,10 +65,10 @@ public:
         }
 
         m_browser = 0;
-        m_client = 0;
+        m_client = nullptr;
 
         gtk_widget_destroy (p_vbox);
-        p_vbox = 0;
+        p_vbox = nullptr;
     }
 
     void client_received_control (const std::string& port, const double value)
@@ -92,9 +96,6 @@ public:
     {
         if (! have_browser_sync())
             return;
-
-//        CefRefPtr<CefFrame> frame = m_browser->GetMainFrame();
-//        frame->ExecuteJavaScript (code, frame->GetURL(), start_line);
     }
 
     int idle()
@@ -107,9 +108,8 @@ public:
         return (m_browser >= 0);
     }
 
-    LV2UI_Widget* widget()
-    {
-        return widget_cast (p_vbox);
+    LV2UI_Widget* widget()  {
+        return (LV2UI_Widget*)p_vbox;
     }
 
 private:
@@ -162,6 +162,10 @@ private:
     {
         if (ClientController* ctl = get_client_controller())
             m_browser = ctl->create_browser (p_vbox, "cefui://plugin/");
+        else
+            m_browser = -1;
+
+        assert (m_browser >= 0);
     }
 };
 
@@ -178,6 +182,3 @@ gint timeout_callback (gpointer)
     return TRUE;
 }
 #endif
-
-// directly include the lvtk wrapper
-#include "../../../lvtk/src/ui.cpp"

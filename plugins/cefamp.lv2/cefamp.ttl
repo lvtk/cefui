@@ -14,7 +14,7 @@
     doap:license <http://usefulinc.com/doap/licenses/gpl> ;
     lv2:requiredFeature urid:map ;
     lv2:optionalFeature lv2:hardRTCapable ;
-    ui:ui <http://lvtoolkit.org/plugins/cef#ui> ;
+    ui:ui <http://lvtoolkit.org/plugins/cefui> ;
     lv2:port [
         a lv2:AudioPort, lv2:InputPort ;
         lv2:index 0 ;

@@ -5,7 +5,7 @@
 @prefix lvtkp: <http://lvtoolkit.org/plugins/> .
 @prefix ui: <http://lv2plug.in/ns/extensions/ui#> .
 
-<http://lvtoolkit.org/plugins/cef#ui>
+<http://lvtoolkit.org/plugins/cefui>
     a ui:@UI_TYPE@ ;
     ui:binary <libcefui_client@LIB_EXT@> ;
     rdfs:seeAlso <cefui.ttl> .

@@ -5,7 +5,7 @@
 @prefix urid:  <http://lv2plug.in/ns/ext/urid#> .
 @prefix ev:    <http://lv2plug.in/ns/ext/event#>.
 	
-<http://lvtoolkit.org/plugins/cef#ui>
+<http://lvtoolkit.org/plugins/cefui>
     a ui:@UI_TYPE@ ;
     lv2:requiredFeature urid:map, ui:idleInterface ;
     lv2:extensionData ui:idleInterface .

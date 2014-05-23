@@ -300,7 +300,7 @@ def build (bld):
         env          = plugin_environ,
         install_path = bundledir,
         linkflags    = [],
-        cxxflags     = ['-DLVTK_DEBUG=0'],
+        cxxflags     = [],
         use          = ['LV2']
     )
 
