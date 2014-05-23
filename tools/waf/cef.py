@@ -98,9 +98,12 @@ def get_cxxflags (debug=False):
     if debug: return debug_cxxflags
     else: return release_cxxflags
 
-def get_outdir (debug=False):
-    if debug: return 'libs/cef_binary/out/Debug'
-    else: return 'libs/cef_binary/out/Release'
+def get_libdir (debug=False):
+    if debug: return 'libs/cef_binary/Debug'
+    else: return 'libs/cef_binary/Release'
 
-def get_file (path, debug=False):
-    return os.path.join (get_outdir (debug), path)
+def get_resdir():
+    return 'libs/cef_binary/Resources'
+
+def get_resource (path):
+    return os.path.join (get_resdir(), path)

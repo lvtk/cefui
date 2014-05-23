@@ -25,9 +25,11 @@ def platform_pre_config (conf):
 def options (opt):
     opt.load ('compiler_c compiler_cxx')
     opt.add_option('--lv2user', default=False, action='store_true', \
-                    dest="lv2user", help='Install Plugins to the LV2 User location [ Default: False ]')
-    opt.add_option('--no-gui', default=True, action='store_false', \
-                    dest="gui", help="Don't Compile Plugin UIs")
+                    dest="lv2user", help='Install Plugins to the LV2 User location')
+    opt.add_option('--debug', default=False, action='store_true', \
+                    dest='debug', help="Enable Compiler debug flags")
+    opt.add_option('--debug-lvtk', default=False, action='store_true', \
+                    dest='debug_lvtk', help="Enable LVTK debug flags")
 
 def configure_lv2dir (conf):
     if 'linux' in sys.platform:
@@ -51,16 +53,15 @@ def configure (conf):
     configure_lv2dir (conf)
 
     conf.env['INCLUDEDIR'] = os.path.join (conf.env.PREFIX, 'include')
-    conf.env['LIBDIR']   = conf.env.PREFIX + '/lib'
-    conf.env['CEFUIDIR'] = conf.env.LV2DIR + '/cefui.lv2'
+    conf.env['LIBDIR']     = conf.env.PREFIX + '/lib'
+    conf.env['CEFUIDIR']   = conf.env.LV2DIR + '/cefui.lv2'
 
     conf.env.append_unique ('CXXFLAGS', ['-std=c++11'])
     conf.check (header_name=['atomic', 'memory'])
 
     conf.check_cfg (package='lv2', uselib_store='LV2', args='--cflags', version='1.8.0', mandatory=True)
     conf.check_cfg (package='lilv-0', uselib_store='LILV', args='--cflags --libs', version='0.18.1', mandatory=True)
-    conf.check_cfg (package='gtk+-2.0', uselib_store='GTK', args='--cflags --libs', version='1.0.0', mandatory=True)
-    conf.check_cfg (package='gtkglext-1.0', uselib_store='GTKGLEXT', args='--cflags --libs', version='1.0.0', mandatory=True)
+    conf.check_cfg (package='gtk+-2.0', uselib_store='GTK', args='--cflags --libs', version='2.18.0', mandatory=True)
 
     pat = conf.env['cshlib_PATTERN']
     if not pat:
@@ -71,9 +72,10 @@ def configure (conf):
     conf.env['plugin_EXT'] = pat[pat.rfind('.'):]
 
     conf.env['CEF_BRANCH'] = 1916
-    conf.env['DEBUG_BUILD'] = False
+    conf.env['DEBUG_BUILD'] = conf.options.debug;
 
-    conf.env.append_unique ('CXXFLAGS', ['-DLVTK_DEBUG=1'])
+    conf.env.append_unique ('CXXFLAGS', ['-DLVTK_DEBUG=%i' % int (conf.options.debug_lvtk)])
+
 
 def build_libcef (bld):
     return # disabled
@@ -88,6 +90,7 @@ def build_libcef (bld):
     #print command
     subprocess.call (command)
 
+
 def post_build (bld):
     if 'build' != bld.cmd:
         return
@@ -97,26 +100,25 @@ def post_build (bld):
     tgt = os.path.join (os.getcwd(), 'build/stage/lib/lv2/cefamp.lv2/content/')
     subprocess.call (['rsync', '-var', '--update', src, tgt])
 
+
 def post_install (bld):
     if 'install' != bld.cmd:
         return
     
-    # The full path to the cefui directory.
+    '''the full path to the cefui directory'''
     cefdir = bld.options.destdir + bld.env.CEFUIDIR
 
-    # Chrome sandbox needs to be owned by root with 4755 permisions
-    # regardless of where it is installed
+    ''' Chrome sandbox needs to be owned by root with 4755 permisions
+        regardless of where it is installed'''
     sandbox = os.path.join (cefdir, 'chrome-sandbox')
     if os.path.exists (sandbox):
         subprocess.call (['chmod', '4755', sandbox])
-    else:
-        print "Error: chrome-sandbox not found in installation"
 
-    # Fix permissions of CEF libraries
+    '''Fix permissions of CEF libraries'''
     for lib in ['libcef.so', 'libffmpegsumo.so']:
         f = os.path.join (cefdir, lib)
         if os.path.exists (f):
-            subprocess.call (['chmod', '+x', f])
+            os.chmod (f, 0755)
 
 def build (bld):
     # CEF must be compiled before anything else
@@ -156,9 +158,9 @@ def build (bld):
     bld.install_files (join (bld.env.PREFIX, 'include/cefui-0/cefui'), glob ('cefui/*.h'))
     bld.add_group()
 
-
-    libcefbuild = cef.get_outdir (debug)
-    libcefinc = 'libs/cef_binary'
+    cefresdir   = cef.get_resdir();
+    ceflibdir = cef.get_libdir (debug)
+    ceftopdir = 'libs/cef_binary'
 
     bundlename = 'cefui.lv2'
     bundledir = '%s/%s' % (bld.env.LV2DIR, bundlename)
@@ -168,41 +170,41 @@ def build (bld):
         bld.env.plugin_PATTERN
 
     # Include misc libraries created by the chromium build
-    for lib in glob (libcefbuild + '/*.so'):
+    for lib in glob (ceflibdir + '/*.so'):
         libstr = '%s' % lib
         bld (
             rule    = 'cp ${SRC} ${TGT}',
-            source  = join (libcefbuild, libstr),
+            source  = join (ceflibdir, libstr),
             target  = join ('stage/lib/lv2', bundlename, libstr),
             name    = libstr.replace ('.so', ''),
             install_path = bld.env.CEFUIDIR,
         )
 
     # Copy non-locale packs
-    for pak in glob (libcefbuild + '/*.pak'):
+    for pak in glob (cefresdir + '/*.pak'):
         bld (
             rule = 'cp ${SRC} ${TGT}',
-            source = join (libcefbuild, '%s' % pak),
+            source = join (cefresdir, '%s' % pak),
             target = join ('stage/lib/lv2', bundlename, '%s' % pak),
             name   = '%s' % pak,
             install_path = bld.env.CEFUIDIR
          )
 
-    # Copy non-locale packs
-    for dat in glob (libcefbuild + '/*.dat'):
+    # Copy data files
+    for dat in glob (cefresdir + '/*.dat'):
         bld (
             rule = 'cp ${SRC} ${TGT}',
-            source = join (libcefbuild, '%s' % dat),
+            source = join (cefresdir, '%s' % dat),
             target = join ('stage/lib/lv2', bundlename, '%s' % dat),
             name   = '%s' % dat,
             install_path = bld.env.CEFUIDIR
          )
 
     # Copy Locales
-    for pak in glob (libcefbuild + '/locales/*.pak'):
+    for pak in glob (cefresdir + '/locales/*.pak'):
         bld (
             rule = 'cp ${SRC} ${TGT}',
-            source = join (libcefbuild + '/locales', '%s' % pak),
+            source = join (cefresdir + '/locales', '%s' % pak),
             target = join ('stage/lib/lv2', bundlename, 'locales/%s' % pak),
             name   = '%s' % pak,
             install_path = join ('%s' % bld.env.CEFUIDIR, 'locales')
@@ -236,7 +238,7 @@ def build (bld):
 
     # Build the LV2 UI + Helper Library
     libcefui = bld.shlib (
-        includes      = [libcefinc, '.', 'libs/lvtk', 'plugins/cefui.lv2'],
+        includes      = [ceftopdir, '.', 'libs/lvtk', 'plugins/cefui.lv2'],
         source        = client_code,
         name          = 'cefui_client',
         target        = join ('stage/lib/lv2', bundlename, 'cefui_client'),
@@ -249,7 +251,7 @@ def build (bld):
 
     # Build the subprocess chromium needs for content rendering
     renderer = bld.program (
-        includes      = [libcefinc, 'plugins/cefui.lv2'],
+        includes      = [ceftopdir, 'plugins/cefui.lv2'],
         source        = glob ('plugins/cefui.lv2/renderer/**/*.cpp'),
         name          = 'cefui-renderer',
         target        = join ('stage/lib/lv2', bundlename, 'cefui-renderer'),
@@ -265,7 +267,7 @@ def build (bld):
 
     # Install the chrome-sandbox
     bld.install_as (join ('%s' % bld.env.CEFUIDIR, 'chrome-sandbox'), \
-                    join (libcefbuild, 'chrome-sandbox'), chmod=0755)
+                    join (ceflibdir, 'chrome-sandbox'), chmod=0755)
 
     bld.add_group()
 
