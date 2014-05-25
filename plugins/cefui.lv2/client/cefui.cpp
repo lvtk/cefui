@@ -8,7 +8,6 @@
 
 #include "cefui/url.h"
 
-
 #include "include/cef_app.h"
 #include "include/cef_browser.h"
 #include "include/cef_frame.h"
@@ -17,6 +16,7 @@
 #include "client/client_app.h"
 #include "client/client_controller.h"
 
+#include <X11/Xlib.h>
 
 // directly include the lvtk wrapper
 #include "../../../lvtk/src/ui.cpp"
@@ -25,8 +25,6 @@ using namespace lvtk;
 
 #define CEFUI_URI     "http://lvtoolkit.org/plugins/cefui"
 
-static gint timeout_callback (gpointer data);
-static guint g_timeout = 0;
 static bool g_have_cef_init = false;
 static int g_num_instances = 0;
 static CefRefPtr<ClientApp> g_app;
@@ -34,7 +32,8 @@ static CefRefPtr<ClientApp> g_app;
 class CefAmpUI;
 
 typedef UI<CefAmpUI, IdleInterface<false>,
-                     URID<true>, PortMap<true> > GuiType;
+                     URID<true>, PortMap<true>,
+                     Parent<true>, UIResize<false> > GuiType;
 
 class CefAmpUI : public GuiType,
                  public ClientController::Listener
@@ -42,17 +41,32 @@ class CefAmpUI : public GuiType,
 public:
 
     CefAmpUI (const char* plugin_uri_)
-        : GuiType()
-    {
-        m_browser = -1;
-        m_plugin_uri = plugin_uri_;
-
-        p_vbox = gtk_vbox_new (FALSE, 0);
-        gtk_widget_set_size_request (p_vbox, 420, 240);
-
+        : GuiType(),
+          m_parent (0), m_window(0),
+          m_plugin_uri (plugin_uri_),
+          m_browser (-1)
+    {       
         chromium_init();
-        sync_browser();
 
+        m_parent = reinterpret_cast<cef_window_handle_t> (get_parent());
+        XDisplay* display = cef_get_xdisplay();
+
+        if (m_parent == 0)
+        {
+            std::clog << "[cefui] using root xwindow as parent.\n";
+            m_parent = XRootWindow (display, XDefaultScreen (display));
+        }
+
+        m_window = XCreateWindow (display, m_parent,
+                                  0, 0, 400, 240, 0,
+                                  CopyFromParent,
+                                  CopyFromParent,
+                                  CopyFromParent,
+                                  CopyFromParent,
+                                  CopyFromParent);
+        XMapWindow (display, m_window);
+        sync_browser();
+        ui_resize (400, 240);
         ++g_num_instances;
     }
 
@@ -61,21 +75,18 @@ public:
         if (m_client)
             m_client->remove_listener (this);
 
+        XDisplay* display = cef_get_xdisplay();
+        XUnmapWindow (display, m_window);
+        XDestroyWindow (display, m_window);
+
         if (have_browser_sync())
             g_app->unregister_browser (m_browser);
 
         m_browser = -1;
         m_client.reset();
 
-        // gtk_widget_destroy (p_vbox);
-        p_vbox = nullptr;
-
         if (--g_num_instances == 0)
         {
-            if (g_timeout != 0) {
-                gtk_timeout_remove (g_timeout);
-                g_timeout = 0;
-            }
         }
     }
 
@@ -108,6 +119,7 @@ public:
 
     int idle()
     {
+        CefDoMessageLoopWork();
         return 0;
     }
 
@@ -117,14 +129,17 @@ public:
     }
 
     LV2UI_Widget* widget()  {
-        return (LV2UI_Widget*)p_vbox;
+
+        return (LV2UI_Widget*)m_window;
     }
 
 private:
+    cef_window_handle_t m_parent;
+    cef_window_handle_t m_window;
     std::string m_plugin_uri;
-    GtkWidget* p_vbox;
-    std::unique_ptr<ClientController> m_client;
     int m_browser;
+    std::unique_ptr<ClientController> m_client;
+
 
     void chromium_init()
     {
@@ -148,17 +163,11 @@ private:
             settings.log_severity = LOGSEVERITY_DISABLE;
            #endif
 
-            std::clog << "CREATING CLIENT APP. CEF3 INIT\n";
-            g_app = new ClientApp();
+            if (! g_app)
+                g_app = new ClientApp();
+
             g_have_cef_init = CefInitialize (args, settings, g_app.get(), 0);
         }
-
-        if (! g_have_cef_init)
-            return;
-
-        if (g_timeout == 0)
-            g_timeout = gtk_timeout_add (30, &timeout_callback, nullptr);
-
     }
 
     ClientController* get_client_controller()
@@ -176,7 +185,7 @@ private:
     {
         if (ClientController* ctl = get_client_controller())
         {
-            m_browser = ctl->create_browser (p_vbox, "cefui://plugin/");
+            m_browser = ctl->create_browser ((void*)m_window, "cefui://plugin/");
         }
         else
         {
@@ -185,19 +194,9 @@ private:
 
         if (m_browser >= 0)
             g_app->register_browser (m_browser, m_plugin_uri);
+        else
+            std::clog << "[cefui] error creating/registering a new browser.\n";
     }
 };
 
-
-int cefui_desc_id = CefAmpUI::register_class (CEFUI_URI);
-
-#ifdef __linux__
-gint timeout_callback (gpointer)
-{
-    if (! g_have_cef_init)
-        return FALSE;
-
-    CefDoMessageLoopWork();
-    return TRUE;
-}
-#endif
+int cefui_descriptor_id = CefAmpUI::register_class (CEFUI_URI);

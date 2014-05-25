@@ -383,8 +383,9 @@ int
 ClientController::create_browser (void* widget, const std::string& url)
 {
     CefWindowInfo info;
+    CefRect rect (0, 0, 400, 240);
     if (nullptr != widget)
-        info.SetAsChild (reinterpret_cast<cef_window_handle_t> (widget));
+        info.SetAsChild (reinterpret_cast<cef_window_handle_t> (widget), rect);
 
     CefBrowserSettings settings;
     const std::string destination (url.empty() ? "http://lv2plug.in" : url);

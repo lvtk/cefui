@@ -56,8 +56,13 @@ def configure (conf):
     conf.env['LIBDIR']     = conf.env.PREFIX + '/lib'
     conf.env['CEFUIDIR']   = conf.env.LV2DIR + '/cefui.lv2'
 
+    conf.find_program ('gperf')
+
     conf.env.append_unique ('CXXFLAGS', ['-std=c++11'])
-    conf.check (header_name=['atomic', 'memory'])
+    conf.check (header_name=['memory'])
+    conf.check (header_name=['unordered_map'])
+    conf.check (header_name=['sys/capability.h'])
+    conf.check (header_name=['gssapi.h'])
 
     conf.check_cfg (package='lv2', uselib_store='LV2', args='--cflags', version='1.8.0', mandatory=True)
     conf.check_cfg (package='lilv-0', uselib_store='LILV', args='--cflags --libs', version='0.18.1', mandatory=True)
@@ -218,7 +223,7 @@ def build (bld):
         target       = join ('stage/lib/lv2', bundlename, 'manifest.ttl'),
         install_path = bundledir,
         LIB_EXT      = plugin_environ.plugin_EXT,
-        UI_TYPE      = 'GtkUI'
+        UI_TYPE      = 'X11UI'
     )
 
     bld (
@@ -226,7 +231,7 @@ def build (bld):
         source       = 'plugins/cefui.lv2/cefui.ttl',
         target       = join ('stage/lib/lv2', bundlename, 'cefui.ttl'),
         install_path = bundledir,
-        UI_TYPE      = 'GtkUI'
+        UI_TYPE      = 'X11UI'
     )
 
     client_code = glob ('libs/cef_binary/libcef_dll/**/*.c*') + \
