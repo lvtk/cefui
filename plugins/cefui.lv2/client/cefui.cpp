@@ -154,7 +154,7 @@ private:
             settings.single_process = false;
             settings.command_line_args_disabled = true;
             settings.multi_threaded_message_loop = false;
-            settings.no_sandbox = true; //TODO: Figure out sandboxing
+            settings.no_sandbox = false; //TODO: Figure out sandboxing
             CefString (&settings.browser_subprocess_path) = renderer_path;
             CefString (&settings.resources_dir_path) = resources_dir;
             CefString (&settings.locales_dir_path) = locales_path;
